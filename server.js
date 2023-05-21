@@ -106,7 +106,8 @@ function checkForAllVoted() {
     votedCards += cards.get(socketIds[i]).votes;
   }
 
-  if (votedCards == socketIds.length) {
+  if (votedCards >= socketIds.length) {
+    votedCards = 0;
     return true;
   }
   return false;
