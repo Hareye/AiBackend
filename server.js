@@ -153,15 +153,16 @@ io.on('connection', (socket) => {
   socket.on("submitCard", (sCard) => {
     cards.set(socket.id, { card: sCard, votes: 0 });
     submittedCards++;
-    checkForAllSubmitted();
+
+    if (checkForAllSubmitted()) {
+      io.emit("sendCards", Array.from(cards.values()));
+      calculateScore(socket);
+      io.emit("playerList", Array.from(players.values()));
+    }
   });
 
   socket.on("voteCard", (sCard) => {
     voteCard(sCard);
-  });
-
-  socket.on("calculateScore", () => {
-    calculateScore(socket);
   });
 });
 
