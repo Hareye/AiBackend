@@ -19,7 +19,7 @@ const PORT = process.env.PORT || 3001;
 
 const players = new Map();
 const cards = new Map();
-const numStartingHand = 2;
+const numStartingHand = 5;
 const scoreToWin = 500;
 const scoreMultiplier = 50;
 var socketIds = new Array();
