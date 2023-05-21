@@ -89,17 +89,33 @@ function chooseBlackCard() {
     return blackCards[x];
 }
 
+function chooseWhiteCards() {
+  var numCards = 2;
+  var arr = new Array();
+
+  for (var i = 0; i < numCards; i++) {
+    let x = Math.floor(Math.random() * whiteCards.length);
+    arr.push(whiteCards[x]);
+  }
+
+  return arr;
+}
+
 server.listen(PORT, () => {
   console.log(`Server listening on ${PORT}`);
 });
 
 io.on('connection', (socket) => {
-  console.log('A user has connected');
+  console.log('A user has connected: ' + socket);
 
-  socket.on('getBlackCard', (msg) => {
+  socket.on('getBlackCard', () => {
     console.log('A user has requested a black card');
-    io.emit('blackCards', chooseBlackCard());
+    io.emit('sendBlackCard', chooseBlackCard());
   });
+  socket.on('getWhiteCards', () => {
+    console.log('A user has requested white cards');
+    io.emit('sendWhiteCards', chooseWhiteCards());
+  })
 });
 
 app.use(cors(corsOptions));
