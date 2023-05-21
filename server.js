@@ -101,10 +101,14 @@ function checkForAllSubmitted() {
 }
 
 function voteCard(sCard) {
-  for (var i = 0; i < socketIds.length; i++) {
-    if (players.get(socketIds[i]).card == sCard) {
-      players.get(socketIds[i]).votes += 1;
-      break;
+  if (cards.get("AI").card == sCard) {
+    cards.get("AI").votes += 1;
+  } else {
+    for (var i = 0; i < socketIds.length; i++) {
+      if (cards.get(socketIds[i]).card == sCard) {
+        cards.get(socketIds[i]).votes += 1;
+        break;
+      }
     }
   }
 }
