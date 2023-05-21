@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const cors = require('cors');
 const { Server } = require("socket.io");
+const { blackCards, whiteCards } = require('./cards.js');
 const app = express();
 const server = http.createServer(app);
 const corsOptions = {
@@ -16,9 +17,8 @@ const io = new Server(server, {
 });
 const PORT = process.env.PORT || 3001;
 
-const { blackCards, whiteCards } = require('./cards.js');
 const players = new Map();
-const playerScore = new Map();
+const numStartingHand = 2;
 var socketIds = new Array();
 
 function chooseBlackCard() {
@@ -26,8 +26,7 @@ function chooseBlackCard() {
   return blackCards[x];
 }
 
-function chooseWhiteCards() {
-  var numCards = 2;
+function chooseWhiteCards(numCards) {
   var arr = new Array();
 
   for (var i = 0; i < numCards; i++) {
@@ -47,12 +46,29 @@ function checkIfReady() {
   return true;
 }
 
-function generateCards() {
+function generateCards(numWhiteCards) {
   io.emit("getBlackCard", chooseBlackCard());
 
   for (var i = 0; i < socketIds.length; i++) {
     console.log("Generating white cards for: " + socketIds[i]);
-    io.to(socketIds[i]).emit("getWhiteCards", chooseWhiteCards());
+    io.to(socketIds[i]).emit("getWhiteCards", chooseWhiteCards(numWhiteCards));
+  }
+}
+
+function checkForWin() {
+  var scoreToWin = 10;
+  var winners = new Array();
+  var endGame = false;
+
+  for (var i = 0; i < socketIds.length; i++) {
+    if (players.get(socketIds[i]).score >= scoreToWin) {
+      winners.add(socketIds[i]);
+      endGame = true;
+    }
+  }
+
+  if (endGame) {
+    io.emit("gameEnd", winners);
   }
 }
 
@@ -60,7 +76,7 @@ io.on('connection', (socket) => {
   console.log('A user has connected, socket id: ' + socket.id);
   socketIds.push(socket.id);
 
-  players.set(socket.id, { id: socket.id, ready: false });
+  players.set(socket.id, { id: socket.id, ready: false, score: 0 });
   io.emit('playerList', Array.from(players.values()));
 
   socket.on('disconnect', () => {
@@ -76,7 +92,7 @@ io.on('connection', (socket) => {
     players.get(socket.id).ready = true;
     if (checkIfReady()) {
       console.log("All players ready");
-      generateCards();
+      generateCards(numStartingHand);
     }
     io.emit('playerList', Array.from(players.values()));
   });
@@ -85,6 +101,14 @@ io.on('connection', (socket) => {
     players.get(socket.id).ready = false;
     io.emit('playerList', Array.from(players.values()));
   });
+
+  socket.on('addScore', (scoreToAdd) => {
+    players.get(socket.id).score += scoreToAdd;
+  })
+
+  socket.on("newRound", () => {
+    generateCards(1);
+  })
 });
 
 server.listen(PORT, () => {
