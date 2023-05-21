@@ -27,6 +27,7 @@ var submittedCards = 0;
 var votedCards = 0;
 var czarIndex = -1;
 var turn = 0;
+var localWhiteCards;
 
 // Helper methods
 function chooseBlackCard() {
@@ -38,9 +39,9 @@ function chooseWhiteCards(numCards) {
   var arr = new Array();
 
   for (var i = 0; i < numCards; i++) {
-    let x = Math.floor(Math.random() * whiteCards.length);
-    arr.push(whiteCards[x]);
-    whiteCards.splice(x, 1);
+    let x = Math.floor(Math.random() * localWhiteCards.length);
+    arr.push(localWhiteCards[x]);
+    localWhiteCards.splice(x, 1);
   }
 
   return arr;
@@ -80,21 +81,21 @@ function checkForWin() {
   }
 }
 
-function aiChooseCard() {
+function aiVoteCard() {
   let x = Math.floor(Math.random() * socketIds.length)
   players.get(socketIds[x]).votes += 1;
 }
 
 function aiSubmitCard() {
-  let x = Math.floor(Math.random() * whiteCards.length);
-  cards.set("AI", { card: whiteCards[x], votes: 0 });
-  whiteCards.splice(x, 1);
+  let x = Math.floor(Math.random() * localWhiteCards.length);
+  cards.set("AI", { card: localWhiteCards[x], votes: 0 });
+  localWhiteCards.splice(x, 1);
 }
 
 function checkForAllSubmitted() {
   if (submittedCards >= socketIds.length -1) {
     submittedCards = 0;
-    aiChooseCard();
+    aiVoteCard();
     aiSubmitCard();
     return true;
   }
@@ -106,7 +107,7 @@ function checkForAllVoted() {
     votedCards += cards.get(socketIds[i]).votes;
   }
 
-  if (votedCards >= socketIds.length) {
+  if (votedCards >= socketIds.length + 1) {
     votedCards = 0;
     return true;
   }
@@ -161,6 +162,7 @@ function checkNoPlayers() {
 function resetGame() {
   players.clear();
   cards.clear();
+  localWhiteCards = [...whiteCards];
   submittedCards = 0;
   votedCards = 0;
   czarIndex = -1;
@@ -195,6 +197,7 @@ io.on('connection', (socket) => {
     players.get(socket.id).ready = true;
     if (checkIfReady()) {
       console.log("All players ready");
+      localWhiteCards = [...whiteCards];
       nextTurn(numStartingHand);
     }
     io.emit('playerList', Array.from(players.values()));
