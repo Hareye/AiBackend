@@ -97,6 +97,7 @@ io.on('connection', (socket) => {
   console.log('A user has connected');
 
   socket.on('getBlackCard', (msg) => {
+    console.log('A user has requested a black card');
     io.emit('blackCards', chooseBlackCard());
   });
 });
