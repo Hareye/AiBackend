@@ -159,8 +159,8 @@ function checkNoPlayers() {
 }
 
 function resetGame() {
-  players = new Map();
-  cards = new Map();
+  players.clear();
+  cards.clear();
   submittedCards = 0;
   votedCards = 0;
   czarIndex = -1;
