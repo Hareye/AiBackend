@@ -90,7 +90,7 @@ app.listen(PORT, () => {
 
 io.on('connection', (socket) => {
   console.log('A user connected');
-
+  socket.emit("userConnected", true);
   socket.on('getBlackCard', (msg) => {
     io.emit('blackCards', chooseBlackCard());
   });
