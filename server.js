@@ -185,7 +185,7 @@ io.on('connection', (socket) => {
       socketIds.splice(socketIds.indexOf(socket.id), 1);
     }
     if (checkNoPlayers()) {
-      console.log("Resetting game");
+      console.log("All players disconnected, resetting game");
       resetGame();
     }
     io.emit('playerList', Array.from(players.values()));
