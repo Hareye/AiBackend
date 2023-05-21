@@ -5,12 +5,12 @@ const { Server } = require("socket.io");
 const app = express();
 const server = http.createServer(app);
 const corsOptions = {
-    origin: "https://localhost:3000",
+    origin: "*",
     optionsSuccessStatus: 200
 };
 const io = new Server(server, {
     cors: {
-        origin: "https://localhost:3000",
+        origin: "*",
         methods: ["GET", "POST"]
     }
 });
@@ -89,13 +89,13 @@ function chooseBlackCard() {
     return blackCards[x];
 }
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server listening on ${PORT}`);
 });
 
 io.on('connection', (socket) => {
-  console.log('A user connected');
-  socket.emit("userConnected", true);
+  console.log('A user has connected');
+
   socket.on('getBlackCard', (msg) => {
     io.emit('blackCards', chooseBlackCard());
   });
