@@ -20,7 +20,7 @@ const themes = [
   "school"
 ]
 
-import { blackCards, whiteCards } from './cards.js';
+const { blackCards, whiteCards } = require('./cards.js');
 
 function chooseBlackCard() {
   let x = Math.floor(Math.random() * blackCards.length);
@@ -45,7 +45,7 @@ server.listen(PORT, () => {
 const players = new Map(); // Map to store connected players
 
 io.on('connection', (socket) => {
-  console.log('A user has connected: ' + socket);
+  console.log('A user has connected, socket id: ' + socket.id);
 
   socket.on('getBlackCard', () => {
     console.log('A user has requested a black card');
@@ -56,7 +56,7 @@ io.on('connection', (socket) => {
     io.emit('sendWhiteCards', chooseWhiteCards());
   })
   // Add the player to the players Map
-  players.set(socket.id, { id: socket.id });
+  players.set(socket.id, { id: socket.id, ready: false });
 
   // Emit the updated player list to all connected clients
   io.emit('playerList', Array.from(players.values()));

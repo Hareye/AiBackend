@@ -62,5 +62,3 @@ const whiteCards = [
     "Dancing rubber boots",
     "Kazoo orchestra"
 ]
-
-export { blackCards, whiteCards }
