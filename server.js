@@ -2,120 +2,214 @@ const express = require('express');
 const http = require('http');
 const cors = require('cors');
 const { Server } = require("socket.io");
+const { blackCards, whiteCards } = require('./cards.js');
 const app = express();
 const server = http.createServer(app);
 const corsOptions = {
-    origin: "*",
-    optionsSuccessStatus: 200
+  origin: "*",
+  optionsSuccessStatus: 200
 };
 const io = new Server(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
-    }
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
 });
 const PORT = process.env.PORT || 3001;
 
-const themes = [
-    "school"
-]
-const blackCards = [
-    "During recess, the cafeteria served up a surprise dish: spaghetti topped with ____________.",
-    "The school library became an unexpected dance party when the librarian started spinning records on a ____________.",
-    "In the middle of a history lecture, the teacher transformed into a ____________, reciting the lesson in rap form.",
-    "The school bus ride turned into a wild adventure when a herd of ____________ stampeded across the road.",
-    "During art class, the paintbrushes mysteriously transformed into ____________, creating abstract masterpieces.",
-    "The school principal announced a new dress code rule: every student must wear ____________ as part of their uniform.",
-    "During chemistry class, a student's experiment resulted in a puff of smoke and a chorus of ____________.",
-    "The school mascot surprised everyone by unveiling a hidden talent: breakdancing dressed as ____________.",
-    "The school assembly turned into a magic show when the guest performer pulled a ____________ out of a hat.",
-    "In a bizarre turn of events, the school's marching band replaced their instruments with ____________, creating a unique sound."
-]
-const whiteCards = [
-    "Rubber duck",
-    "Disco ball",
-    "Dancing giraffe",
-    "Flying pig",
-    "Spaghetti monster",
-    "Bubble wrap",
-    "Sock puppet",
-    "Inflatable dinosaur",
-    "Banana suit",
-    "Invisible cloak",
-    "Cupcake cannon",
-    "Mustache wig",
-    "Bubblegum blaster",
-    "Pogo stick shoes",
-    "Saxophone-playing robot",
-    "Dancing broomstick",
-    "Rainbow-colored wig",
-    "Sneezing unicorn",
-    "Glow-in-the-dark sneakers",
-    "Singing toaster",
-    "Electric kazoo",
-    "Giant rubber band ball",
-    "Confetti-shooting umbrella",
-    "Jumping pogo carrot",
-    "Flamingo on roller skates",
-    "Tuba-playing octopus",
-    "Hula hoop with bells",
-    "Funky disco shoes",
-    "Squirting flower bouquet",
-    "Parrot on a unicycle",
-    "Glitter cannon",
-    "Acrobatic hamster",
-    "Banana phone",
-    "Saxophone-playing chicken",
-    "Magic wand with sparkles",
-    "Silly string shooter",
-    "Twirling baton made of spaghetti",
-    "Dancing watermelon",
-    "Cackling rubber chicken",
-    "Bagpipes made of bubble wrap",
-    "Juggling rubber chickens",
-    "Pencil with springs",
-    "Giant inflatable sunglasses",
-    "Tap-dancing goldfish",
-    "Singing toilet paper roll",
-    "Trumpet-playing gorilla",
-    "Yo-yo that lights up",
-    "Whistling teapot",
-    "Dancing rubber boots",
-    "Kazoo orchestra"
-]
+const players = new Map();
+const cards = new Map();
+const numStartingHand = 2;
+const scoreToWin = 500;
+const scoreMultiplier = 50;
+var socketIds = new Array();
+var submittedCards = 0;
+var votedCards = 0;
+var czarIndex = -1;
+var turn = 0;
 
+// Helper methods
 function chooseBlackCard() {
-    let x = Math.floor(Math.random() * blackCards.length);
-    return blackCards[x];
+  let x = Math.floor(Math.random() * blackCards.length);
+  return blackCards[x];
 }
 
-function chooseWhiteCards() {
-  var numCards = 2;
+function chooseWhiteCards(numCards) {
   var arr = new Array();
 
   for (var i = 0; i < numCards; i++) {
     let x = Math.floor(Math.random() * whiteCards.length);
     arr.push(whiteCards[x]);
+    whiteCards.splice(x, 1);
   }
 
   return arr;
 }
 
-server.listen(PORT, () => {
-  console.log(`Server listening on ${PORT}`);
-});
+function checkIfReady() {
+  for (var i = 0; i < socketIds.length; i++) {
+    if (players.get(socketIds[i]).ready == false) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function generateCards(numWhiteCards) {
+  io.emit("getBlackCard", chooseBlackCard());
+
+  for (var i = 0; i < socketIds.length; i++) {
+    console.log("Generating white cards for: " + socketIds[i]);
+    io.to(socketIds[i]).emit("getWhiteCards", chooseWhiteCards(numWhiteCards));
+  }
+}
+
+function checkForWin() {
+  var winners = new Array();
+  var endGame = false;
+
+  for (var i = 0; i < socketIds.length; i++) {
+    if (players.get(socketIds[i]).score >= scoreToWin) {
+      winners.add(socketIds[i]);
+      endGame = true;
+    }
+  }
+
+  if (endGame) {
+    io.emit("gameEnd", winners);
+  }
+}
+
+function aiChooseCard() {
+  let x = Math.floor(Math.random() * socketIds.length)
+  players.get(socketIds[x]).votes += 1;
+}
+
+function aiSubmitCard() {
+  let x = Math.floor(Math.random() * whiteCards.length);
+  cards.set("AI", { card: whiteCards[x], votes: 0 });
+  whiteCards.splice(x, 1);
+}
+
+function checkForAllSubmitted() {
+  if (submittedCards >= socketIds.length) {
+    submittedCards = 0;
+    aiChooseCard();
+    aiSubmitCard();
+    return true;
+  }
+  return false;
+}
+
+function checkForAllVoted() {
+  for (var i = 0; i < cards.values().length; i++) {
+    votedCards += cards.get(socketIds[i]).votes;
+  }
+
+  if (votedCards >= socketIds.length) {
+    votedCards = 0;
+    return true;
+  }
+  return false;
+}
+
+function voteCard(sCard) {
+  if (cards.get("AI").card == sCard) {
+    cards.get("AI").votes += 1;
+  } else {
+    for (var i = 0; i < socketIds.length; i++) {
+      if (cards.get(socketIds[i]).card == sCard) {
+        cards.get(socketIds[i]).votes += 1;
+        break;
+      }
+    }
+  }
+}
+
+function calculateScore(socket) {
+  for (var i = 0; i < socketIds.length; i++) {
+    if (players.get(socketIds[i]).votes > 0) {
+      players.get(socket.id).score += votes * scoreMultiplier;
+    }
+  }
+}
+
+function chooseCzar() {
+  if (czarIndex == socketIds.length - 1) {
+    czarIndex = 0;
+  } else {
+    czarIndex = czarIndex + 1;
+  }
+}
+
+function nextTurn(numCards) {
+  generateCards(numCards);
+  chooseCzar();
+  turn++;
+
+  io.emit("czar", socketIds[czarIndex]);
+  io.emit("turn", turn);
+}
 
 io.on('connection', (socket) => {
-  console.log('A user has connected: ' + socket);
+  console.log('A user has connected, socket id: ' + socket.id);
+  socketIds.push(socket.id);
 
-  socket.on('getBlackCard', () => {
-    console.log('A user has requested a black card');
-    io.emit('sendBlackCard', chooseBlackCard());
+  players.set(socket.id, { id: socket.id, ready: false, score: 0 });
+  io.emit('playerList', Array.from(players.values()));
+
+  // Socket events
+  socket.on('disconnect', () => {
+    console.log('A user has disconnected');
+    players.delete(socket.id);
+    if (cards.has(socket.id)) {
+      cards.delete(socket.id);
+    }
+    if (socketIds.indexOf(socket.id) != -1) {
+      socketIds.splice(socketIds.indexOf(socket.id), 1);
+    }
+    io.emit('playerList', Array.from(players.values()));
   });
-  socket.on('getWhiteCards', () => {
-    console.log('A user has requested white cards');
-    io.emit('sendWhiteCards', chooseWhiteCards());
-  })
+
+  socket.on('ready', () => {
+    players.get(socket.id).ready = true;
+    if (checkIfReady()) {
+      console.log("All players ready");
+      nextTurn(numStartingHand);
+    }
+    io.emit('playerList', Array.from(players.values()));
+  });
+
+  socket.on('notReady', () => {
+    players.get(socket.id).ready = false;
+    io.emit('playerList', Array.from(players.values()));
+  });
+
+  socket.on("submitCard", (sCard) => {
+    console.log("Card was submitted: ", sCard);
+    cards.set(socket.id, { card: sCard, votes: 0 });
+    submittedCards++;
+
+    if (checkForAllSubmitted()) {
+      console.log("All players have submitted");
+      io.emit("sendSubmittedCards", Array.from(cards.values()));
+    }
+  });
+
+  socket.on("voteCard", (sCard) => {
+    voteCard(sCard);
+
+    if (checkForAllVoted()) {
+      console.log("All players have voted");
+      calculateScore(socket);
+      io.emit("playerList", Array.from(players.values()));
+      nextTurn(1);
+    }
+  });
+});
+
+server.listen(PORT, () => {
+  console.log(`Server listening on ${PORT}`);
 });
 
 app.use(cors(corsOptions));
