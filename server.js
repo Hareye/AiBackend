@@ -96,9 +96,12 @@ server.listen(PORT, () => {
 io.on('connection', (socket) => {
   console.log('A user has connected');
 
-  socket.on('getBlackCard', (msg) => {
-    io.emit('blackCards', chooseBlackCard());
-  });
+  // socket.on('getBlackCard', (msg) => {
+  //   io.emit('blackCards', chooseBlackCard());
+  // });
+  socket.on("disconnect", ()=> {
+    console.log("user disconnected");
+  })
 });
 
 app.use(cors(corsOptions));
