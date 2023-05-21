@@ -62,3 +62,5 @@ const whiteCards = [
     "Dancing rubber boots",
     "Kazoo orchestra"
 ]
+
+module.exports = { blackCards, whiteCards };

@@ -16,11 +16,10 @@ const io = new Server(server, {
 });
 const PORT = process.env.PORT || 3001;
 
-const themes = [
-  "school"
-]
-
 const { blackCards, whiteCards } = require('./cards.js');
+const players = new Map();
+const playerScore = new Map();
+var socketIds = new Array();
 
 function chooseBlackCard() {
   let x = Math.floor(Math.random() * blackCards.length);
@@ -39,41 +38,46 @@ function chooseWhiteCards() {
   return arr;
 }
 
-server.listen(PORT, () => {
-  console.log(`Server listening on ${PORT}`);
-});
-const players = new Map(); // Map to store connected players
+function checkIfReady() {
+  for (var i = 0; i < socketIds.length; i++) {
+    if (players.get(socketIds[i]).ready == false) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function generateCards() {
+  io.emit("getBlackCard", chooseBlackCard());
+
+  for (var i = 0; i < socketIds.length; i++) {
+    console.log("Generating white cards for: " + socketIds[i]);
+    io.to(socketIds[i]).emit("getWhiteCards", chooseWhiteCards());
+  }
+}
 
 io.on('connection', (socket) => {
   console.log('A user has connected, socket id: ' + socket.id);
+  socketIds.push(socket.id);
 
-  socket.on('getBlackCard', () => {
-    console.log('A user has requested a black card');
-    io.emit('sendBlackCard', chooseBlackCard());
-  });
-  socket.on('getWhiteCards', () => {
-    console.log('A user has requested white cards');
-    io.emit('sendWhiteCards', chooseWhiteCards());
-  })
-  // Add the player to the players Map
   players.set(socket.id, { id: socket.id, ready: false });
-
-  // Emit the updated player list to all connected clients
   io.emit('playerList', Array.from(players.values()));
 
-  // Handle player disconnect
   socket.on('disconnect', () => {
     console.log('A user has disconnected');
-
-    // Remove the player from the players Map
     players.delete(socket.id);
-
-    // Emit the updated player list to all connected clients
+    if (socketIds.indexOf(socket.id) != -1) {
+      socketIds.splice(socketIds.indexOf(socket.id), 1);
+    }
     io.emit('playerList', Array.from(players.values()));
   });
-  // Handle custom events here...
+
   socket.on('ready', () => {
     players.get(socket.id).ready = true;
+    if (checkIfReady()) {
+      console.log("All players ready");
+      generateCards();
+    }
     io.emit('playerList', Array.from(players.values()));
   });
 
@@ -81,7 +85,10 @@ io.on('connection', (socket) => {
     players.get(socket.id).ready = false;
     io.emit('playerList', Array.from(players.values()));
   });
+});
 
+server.listen(PORT, () => {
+  console.log(`Server listening on ${PORT}`);
 });
 
 app.use(cors(corsOptions));
