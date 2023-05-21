@@ -24,6 +24,8 @@ const scoreToWin = 500;
 const scoreMultiplier = 50;
 var socketIds = new Array();
 var submittedCards = 0;
+var czarIndex = -1;
+var turn = 0;
 
 // Helper methods
 function chooseBlackCard() {
@@ -115,6 +117,23 @@ function calculateScore(socket) {
   }
 }
 
+function chooseCzar() {
+  if (czarIndex == socketIds.length - 1) {
+    czarIndex = 0;
+  } else {
+    czarIndex = czarIndex + 1;
+  }
+}
+
+function nextTurn(numCards) {
+  generateCards(numCards);
+  chooseCzar();
+  turn++;
+
+  io.emit("czar", socketIds[czarIndex]);
+  io.emit("turn", turn);
+}
+
 io.on('connection', (socket) => {
   console.log('A user has connected, socket id: ' + socket.id);
   socketIds.push(socket.id);
@@ -136,7 +155,7 @@ io.on('connection', (socket) => {
     players.get(socket.id).ready = true;
     if (checkIfReady()) {
       console.log("All players ready");
-      generateCards(numStartingHand);
+      nextTurn(numStartingHand);
     }
     io.emit('playerList', Array.from(players.values()));
   });
@@ -144,10 +163,6 @@ io.on('connection', (socket) => {
   socket.on('notReady', () => {
     players.get(socket.id).ready = false;
     io.emit('playerList', Array.from(players.values()));
-  });
-
-  socket.on("newRound", () => {
-    generateCards(1);
   });
 
   socket.on("submitCard", (sCard) => {
@@ -158,6 +173,7 @@ io.on('connection', (socket) => {
       io.emit("sendCards", Array.from(cards.values()));
       calculateScore(socket);
       io.emit("playerList", Array.from(players.values()));
+      nextTurn(1);
     }
   });
 
