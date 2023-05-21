@@ -162,6 +162,9 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('A user has disconnected');
     players.delete(socket.id);
+    if (cards.has(socket.id)) {
+      cards.delete(socket.id);
+    }
     if (socketIds.indexOf(socket.id) != -1) {
       socketIds.splice(socketIds.indexOf(socket.id), 1);
     }
@@ -189,7 +192,7 @@ io.on('connection', (socket) => {
 
     if (checkForAllSubmitted()) {
       console.log("All players have submitted");
-      io.emit("sendCards", Array.from(cards.values()));
+      io.emit("sendSubmittedCards", Array.from(cards.values()));
     }
   });
 
