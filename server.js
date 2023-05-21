@@ -92,7 +92,7 @@ function aiSubmitCard() {
 }
 
 function checkForAllSubmitted() {
-  if (submittedCards >= socketIds.length) {
+  if (submittedCards >= socketIds.length -1) {
     submittedCards = 0;
     aiChooseCard();
     aiSubmitCard();
@@ -189,7 +189,7 @@ io.on('connection', (socket) => {
 
     if (checkForAllSubmitted()) {
       console.log("All players have submitted");
-      io.emit("sendCards", Array.from(cards.values()));
+      io.emit("sendSubmittedCards", Array.from(cards.values()));
     }
   });
 
