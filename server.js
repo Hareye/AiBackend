@@ -1,8 +1,13 @@
 const express = require('express');
 const http = require('http');
+const cors = require('cors');
 const { Server } = require("socket.io");
 const app = express();
 const server = http.createServer(app);
+const corsOptions = {
+    origin: "https://localhost:3000",
+    optionsSuccessStatus: 200
+};
 const io = new Server(server, {
     cors: {
         origin: "https://localhost:3000",
@@ -95,3 +100,5 @@ io.on('connection', (socket) => {
     io.emit('blackCards', chooseBlackCard());
   });
 });
+
+app.use(cors(corsOptions));
