@@ -24,6 +24,7 @@ const scoreToWin = 500;
 const scoreMultiplier = 50;
 var socketIds = new Array();
 var submittedCards = 0;
+var votedCards = 0;
 var czarIndex = -1;
 var turn = 0;
 
@@ -91,10 +92,21 @@ function aiSubmitCard() {
 }
 
 function checkForAllSubmitted() {
-  if (submittedCards >= players.length) {
+  if (submittedCards >= socketIds.length) {
     submittedCards = 0;
     aiChooseCard();
     aiSubmitCard();
+    return true;
+  }
+  return false;
+}
+
+function checkForAllVoted() {
+  for (var i = 0; i < cards.values().length; i++) {
+    votedCards += cards.get(socketIds[i]).votes;
+  }
+
+  if (votedCards == socketIds.length) {
     return true;
   }
   return false;
@@ -170,19 +182,25 @@ io.on('connection', (socket) => {
   });
 
   socket.on("submitCard", (sCard) => {
+    console.log("Card was submitted: ", sCard);
     cards.set(socket.id, { card: sCard, votes: 0 });
     submittedCards++;
 
     if (checkForAllSubmitted()) {
+      console.log("All players have submitted");
       io.emit("sendCards", Array.from(cards.values()));
-      calculateScore(socket);
-      io.emit("playerList", Array.from(players.values()));
-      nextTurn(1);
     }
   });
 
   socket.on("voteCard", (sCard) => {
     voteCard(sCard);
+
+    if (checkForAllVoted()) {
+      console.log("All players have voted");
+      calculateScore(socket);
+      io.emit("playerList", Array.from(players.values()));
+      nextTurn(1);
+    }
   });
 });
 
