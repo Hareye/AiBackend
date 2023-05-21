@@ -72,6 +72,16 @@ io.on('connection', (socket) => {
     io.emit('playerList', Array.from(players.values()));
   });
   // Handle custom events here...
+  socket.on('ready', () => {
+    players.get(socket.id).ready = true;
+    io.emit('playerList', Array.from(players.values()));
+  });
+
+  socket.on('notReady', () => {
+    players.get(socket.id).ready = false;
+    io.emit('playerList', Array.from(players.values()));
+  });
+
 });
 
 app.use(cors(corsOptions));
