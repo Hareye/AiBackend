@@ -18,9 +18,14 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 3001;
 
 const players = new Map();
+const cards = new Map();
 const numStartingHand = 2;
+const scoreToWin = 500;
+const scoreMultiplier = 50;
 var socketIds = new Array();
+var submittedCards = 0;
 
+// Helper methods
 function chooseBlackCard() {
   let x = Math.floor(Math.random() * blackCards.length);
   return blackCards[x];
@@ -32,6 +37,7 @@ function chooseWhiteCards(numCards) {
   for (var i = 0; i < numCards; i++) {
     let x = Math.floor(Math.random() * whiteCards.length);
     arr.push(whiteCards[x]);
+    whiteCards.splice(x, 1);
   }
 
   return arr;
@@ -56,7 +62,6 @@ function generateCards(numWhiteCards) {
 }
 
 function checkForWin() {
-  var scoreToWin = 10;
   var winners = new Array();
   var endGame = false;
 
@@ -72,6 +77,44 @@ function checkForWin() {
   }
 }
 
+function aiChooseCard() {
+  let x = Math.floor(Math.random() * socketIds.length)
+  players.get(socketIds[x]).votes += 1;
+}
+
+function aiSubmitCard() {
+  let x = Math.floor(Math.random() * whiteCards.length);
+  cards.set("AI", { card: whiteCards[x], votes: 0 });
+  whiteCards.splice(x, 1);
+}
+
+function checkForAllSubmitted() {
+  if (submittedCards >= players.length) {
+    submittedCards = 0;
+    aiChooseCard();
+    aiSubmitCard();
+    return true;
+  }
+  return false;
+}
+
+function voteCard(sCard) {
+  for (var i = 0; i < socketIds.length; i++) {
+    if (players.get(socketIds[i]).card == sCard) {
+      players.get(socketIds[i]).votes += 1;
+      break;
+    }
+  }
+}
+
+function calculateScore(socket) {
+  for (var i = 0; i < socketIds.length; i++) {
+    if (players.get(socketIds[i]).votes > 0) {
+      players.get(socket.id).score += votes * scoreMultiplier;
+    }
+  }
+}
+
 io.on('connection', (socket) => {
   console.log('A user has connected, socket id: ' + socket.id);
   socketIds.push(socket.id);
@@ -79,6 +122,7 @@ io.on('connection', (socket) => {
   players.set(socket.id, { id: socket.id, ready: false, score: 0 });
   io.emit('playerList', Array.from(players.values()));
 
+  // Socket events
   socket.on('disconnect', () => {
     console.log('A user has disconnected');
     players.delete(socket.id);
@@ -102,13 +146,23 @@ io.on('connection', (socket) => {
     io.emit('playerList', Array.from(players.values()));
   });
 
-  socket.on('addScore', (scoreToAdd) => {
-    players.get(socket.id).score += scoreToAdd;
-  })
-
   socket.on("newRound", () => {
     generateCards(1);
-  })
+  });
+
+  socket.on("submitCard", (sCard) => {
+    cards.set(socket.id, { card: sCard, votes: 0 });
+    submittedCards++;
+    checkForAllSubmitted();
+  });
+
+  socket.on("voteCard", (sCard) => {
+    voteCard(sCard);
+  });
+
+  socket.on("calculateScore", () => {
+    calculateScore(socket);
+  });
 });
 
 server.listen(PORT, () => {
