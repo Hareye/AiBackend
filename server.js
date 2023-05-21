@@ -151,6 +151,22 @@ function nextTurn(numCards) {
   io.emit("turn", turn);
 }
 
+function checkNoPlayers() {
+  if (socketIds.length == 0) {
+    return true;
+  }
+  return false;
+}
+
+function resetGame() {
+  players = new Map();
+  cards = new Map();
+  submittedCards = 0;
+  votedCards = 0;
+  czarIndex = -1;
+  turn = 0;
+}
+
 io.on('connection', (socket) => {
   console.log('A user has connected, socket id: ' + socket.id);
   socketIds.push(socket.id);
@@ -167,6 +183,10 @@ io.on('connection', (socket) => {
     }
     if (socketIds.indexOf(socket.id) != -1) {
       socketIds.splice(socketIds.indexOf(socket.id), 1);
+    }
+    if (checkNoPlayers()) {
+      console.log("Resetting game");
+      resetGame();
     }
     io.emit('playerList', Array.from(players.values()));
   });
