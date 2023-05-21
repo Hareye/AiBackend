@@ -103,11 +103,14 @@ function checkForAllSubmitted() {
 }
 
 function checkForAllVoted() {
-  for (var i = 0; i < cards.values().length; i++) {
-    votedCards += cards.get(socketIds[i]).votes;
+  for (var i = 0; i < socketIds.length; i++) {
+    if (cards.has(socketIds[i])) {
+      console.log("Adding votes: " + cards.get(socketIds[i]).votes);
+      votedCards += cards.get(socketIds[i]).votes;
+    }
   }
 
-  if (votedCards >= socketIds.length + 1) {
+  if (votedCards >= socketIds.length) {
     votedCards = 0;
     return true;
   }
@@ -119,9 +122,12 @@ function voteCard(sCard) {
     cards.get("AI").votes += 1;
   } else {
     for (var i = 0; i < socketIds.length; i++) {
-      if (cards.get(socketIds[i]).card == sCard) {
-        cards.get(socketIds[i]).votes += 1;
-        break;
+      if (cards.has(socketIds[i])) {
+        if (cards.get(socketIds[i]).card === sCard.card) {
+          console.log("A player has voted");
+          cards.get(socketIds[i]).votes += 1;
+          break;
+        }
       }
     }
   }
@@ -209,7 +215,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on("submitCard", (sCard) => {
-    console.log("Card was submitted: ", sCard);
+    console.log("Card was submitted (" + socket.id + "): ", sCard);
     cards.set(socket.id, { card: sCard, votes: 0 });
     submittedCards++;
 
@@ -225,7 +231,9 @@ io.on('connection', (socket) => {
     if (checkForAllVoted()) {
       console.log("All players have voted");
       calculateScore(socket);
+      io.emit("sendSubmittedCards", Array.from(cards.values()));
       io.emit("playerList", Array.from(players.values()));
+      io.emit("clearCards", null);
       nextTurn(1);
     }
   });
